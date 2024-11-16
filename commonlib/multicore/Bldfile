@@ -1,0 +1,2 @@
+lib=multicore
+file=hardwareinfo.h;hardwareinfo.cxx

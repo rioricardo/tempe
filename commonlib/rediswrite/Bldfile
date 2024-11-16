@@ -1,0 +1,5 @@
+prog=rediswrite
+src=src
+bin=bin
+file=main.cxx
+option=-lhiredis
