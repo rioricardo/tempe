@@ -1,2 +1,2 @@
-lib=multicore
+dynlib=multicore
 file=hardwareinfo.h;hardwareinfo.cxx

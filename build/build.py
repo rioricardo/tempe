@@ -3,6 +3,7 @@ import subprocess
 import sys
 import platform
 import shutil
+import argparse
 
 
 # Get the current script path
@@ -10,9 +11,36 @@ current_dir = os.path.dirname(__file__)
 # Get the parent directory
 parent_dir = os.path.dirname(current_dir)
 
-bindir = os.path.join(parent_dir,'bin')
-libdir = os.path.join(parent_dir,'lib')
+binout = os.path.join(parent_dir,'bin')
+libout = os.path.join(parent_dir,'lib')
 
+
+#help and usage
+def setup_parser():
+    """Setup argument parser to handle command-line arguments."""
+    parser = argparse.ArgumentParser(
+        description="Automates the process of compiling C++ programs and libraries based on a build configuration file."
+    )
+    
+    # Add arguments for specifying directories to compile
+    parser.add_argument(
+        'directories', 
+        nargs='*',  # Accept zero or more directories
+        help="Directories to compile. If none provided, all directories in the build file will be processed."
+    )
+    
+    # Optional argument for --help (automatically handled by argparse)
+    parser.add_argument(
+        '--version', 
+        action='version', 
+        version="1.0",  # Replace with your script version
+        help="Show the version of the script."
+    )
+    
+    return parser
+
+# detect the system compiler
+# O : string of compiler name
 def detect_compiler():
     """Detect the system compiler."""
     system_platform = platform.system()
@@ -22,6 +50,7 @@ def detect_compiler():
             return "g++"
         else:
             raise EnvironmentError("No suitable C++ compiler found on Linux or macOS.")
+         
     elif system_platform == "Windows":
         compiler = shutil.which("g++") or shutil.which("cl")
         if compiler:
@@ -31,52 +60,7 @@ def detect_compiler():
     else:
         raise EnvironmentError("Unknown platform")
 
-def get_binary_name(prog_name,type):
-    """Get the appropriate binary name based on the operating system."""
-    if type == 'prog':
-        progname = f"{prog_name}.exe" if platform.system() == "Windows" else prog_name
-        return os.path.join(bindir,progname)
-    elif type == 'lib':
-        libname = f"lib{prog_name}.dll" if platform.system() == "Windows" else f"lib{prog_name}.so"
-        return os.path.join(libdir,libname)
-    else:
-        print(f"Error: unknown type of object {prog_name}")
-        sys.exit(1)
-
-def load_bldfile(bldfilename):
-    """Load and parse the build file, returning program configuration dictionaries."""
-    objdic, typdic, filedic, libdic, optdic = {}, {}, {}, {}, {}
-    try:
-        with open(bldfilename, "r") as bldfile:
-            for line in bldfile:
-                line = line.strip()
-                if line.startswith("#") or not line:
-                    continue
-                if '=' in line:
-                    id, value = line.split('=', maxsplit=1)
-                    if id == 'prog':
-                        objdic[value] = value
-                        typdic[value] = 'prog'
-                        obj = value
-                    elif id == 'lib':
-                        objdic[value] = value
-                        typdic[value] = 'lib'
-                        obj = value
-                    elif id == 'file':
-                        filedic[obj] = value
-                    elif id == 'libraries':
-                        libdic[obj] = value
-                    elif id == 'option':
-                        optdic[obj] = value
-    except FileNotFoundError:
-        print(f"Error: {bldfilename} does not exist.")
-        sys.exit(1)
-    except Exception as e:
-        print(f"Error reading {bldfilename}: {e}")
-        sys.exit(1)
-
-    return objdic, typdic, filedic, libdic, optdic
-
+# procedure to create lib directories and bin directories
 def prepare_directories(bindir):
     """Ensure the binary directory exists, creating it if necessary."""
     if not bindir:
@@ -87,100 +71,224 @@ def prepare_directories(bindir):
         print(f"Error creating binary directory '{bindir}': {e}")
         sys.exit(1)
 
-def validate_sources(srcdir, files):
-    """Validate that the source directory and files exist."""
-    if not os.path.isdir(srcdir):
-        print(f"Error: Source directory '{srcdir}' does not exist.")
-        sys.exit(1)
-    source_files = [os.path.join(srcdir, f) for f in files.split(';') if os.path.isfile(os.path.join(srcdir, f))]
-    if not source_files:
-        print("Error: No valid source files found.")
-        sys.exit(1)
-    return source_files
+def check_compile_directory(parent_dir,objdir):
+    compdir = os.path.join(parent_dir, objdir)
+    if not os.path.isdir(compdir):
+        print(f"invalid program or library directory '{compdir}'.")
+        return
+    return compdir
 
-def validate_options(options):
-    if (options):
-        return ' '.join(options.split(';'))
-    else:
-        return None
 
-def compile_program(compiler, type, source_files, output_path, libs, options):
+#bldfile processes
+
+def search_bldfile(comp_dir,bldfile):
+    bldfilename = os.path.join(comp_dir,bldfile)
+    if not os.path.isfile(bldfilename):
+        print(f"bld file not found '{bldfilename}'.")
+        return
+    return bldfilename
+
+def read_bldfile(bldfilename):
+    """Load and parse the build file, returning program configuration dictionaries."""
+    objdic, typdic, filedic, libdic, optdic = {}, {}, {}, {}, {}
+    obj = None
+    try:
+        with open(bldfilename, "r") as bldfile:
+            for line in bldfile:
+                line = line.strip()
+                if line.startswith("#") or not line:
+                    continue
+                if '=' in line:
+                    id, value = (part.strip() for part in line.split('=', maxsplit=1))
+                    if id == 'prog':
+                        objdic[value] = value
+                        typdic[value] = 'prog'
+                        obj = value
+                    elif id == 'dynlib':
+                        objdic[value] = value
+                        typdic[value] = 'dynlib'
+                        obj = value
+                    elif id == 'statlib':
+                        objdic[value] = value
+                        typdic[value] = 'statlib'
+                        obj = value
+                    elif id == 'file':
+                        if(obj):
+                            filedic[obj] = value
+                        else:
+                            print (f"no object file found for {id} and {value}")
+                    elif id == 'libraries':
+                        if(obj):
+                            libdic[obj] = value
+                        else:
+                            print (f"no object file found for {id} and {value}")
+                    elif id == 'option':
+                        if(obj):
+                            optdic[obj] = value
+                        else:
+                            print (f"no object file found for {id} and {value}")
+    except FileNotFoundError:
+        print(f"Error: {bldfilename} does not exist.")
+    except Exception as e:
+        print(f"Error reading {bldfilename}: {e}")
+    
+    return objdic, typdic, filedic, libdic, optdic
+
+def check_objects_in_bldfile(bldfile,objdic,typdic):
+    if not objdic or not typdic:
+        print (f"no objects found in {bldfile}")
+        return False
+    return True
+
+def process_bldfile(comp_dir,bldfile='Bldfile'):
+    bldfilevalid = True
+    #search for bldfile
+    bldfile = search_bldfile(comp_dir, bldfile)
+    if not bldfile : 
+        bldfilevalid = False
+    #read bldfile 
+    objdic, typdic, filedic, libdic, optdic = read_bldfile(bldfile)
+    #validate objects in bldfile
+    if not check_objects_in_bldfile(bldfile, objdic, typdic): 
+        bldfilevalid = False
+        
+    return bldfilevalid, objdic, typdic, filedic, libdic, optdic
+
+#end of bldfile processes
+
+#compilation processes
+
+#procedure to compile program
+def compile_program(incdir, libraries, compiler, type, source_files, output_path, options):
     """Compile the program using the specified compiler and source files."""
-    incdir = "-I" + os.path.join(parent_dir)
-    custlib = "-L" + os.path.join(libdir)
-    if (libs):
-        libraries = [f"-l{l}" for l in libs.split(';')]
-        libraries = [custlib] + libraries + [f"-Wl,-rpath,{libdir}"]
     if type == 'prog':
         compile_command = [compiler] + source_files + libraries + [opt for opt in [options, incdir, "-g", "-o", output_path] if opt]
-    elif type == 'lib':
-        compile_command = [compiler] + source_files + [opt for opt in [incdir, options, "-fPIC", "-shared","-g", "-o", output_path] if opt]
+    elif type == 'dynlib':
+        compile_command = [compiler] + source_files + libraries + [opt for opt in [incdir, options, "-fPIC", "-shared","-g", "-o", output_path] if opt]
+    elif type == 'statlib':
+        compile_command = [compiler] + source_files + libraries + [opt for opt in [incdir, options,"-g", "-o", output_path] if opt]
     else:
-        print(f"Error: unknown type of object {output_path}")
-        sys.exit(1)
+        print(f"Error: unknown type of object {output_path}, skip compiling")
+        return
     try:
         print(f"Compiling {output_path}...")
         print(f"Compile command {compile_command}...")
         subprocess.run(compile_command, check=True)
         print(f"Build successful! Binary created at {output_path}")
     except subprocess.CalledProcessError:
-        print("Error: Compilation failed.")
-        sys.exit(1)
-
-
-def build_program(objdir,parent_dir,bldfilename="Bldfile"):
-
-    objdir = os.path.join(parent_dir, objdir)
-
-    if not os.path.isdir(objdir):
-        print(f"invalid program or library directory '{objdir}'.")
+        print(f"Error: Compilation failed for {output_path}")
         return
-    
-    bldfile = os.path.join(objdir,bldfilename)
-    objdic, typdic, filedic, libdic, optdic = load_bldfile(bldfile)
-    compiler = detect_compiler()
 
+def collect_sources(cmpdir, files):
+    source_files = []
+    for f in (part.strip() for part in files.split(';')):
+        if os.path.isfile(os.path.join(cmpdir, f)):
+            source_files.append(os.path.join(cmpdir, f))
+        else :
+            print(f"file {cmpdir}/{f} not found, skipping {cmpdir}")
+            return
+    return source_files
+
+def validate_options(options):
+    if (options):
+        return ' '.join(options.split(';'))
+    else:
+        return
+  
+def get_libraries(libout, libs):
+    #link custom library in compilation
+    libraries = []
+    custlib = "-L" + os.path.join(libout)
+    if (libs):
+        libraries = [f"-l{l}" for l in libs.split(';')]
+        libraries = [custlib] + libraries + [f"-Wl,-rpath,{libout}"]
+    return libraries
+
+def addinclude(parent_dir):
+    #add includes 
+    return "-I" + os.path.join(parent_dir)
+
+# I: program name according to bldfile and the type
+def get_binary_name(binout, libout, prog_name,type):
+    """Get the appropriate binary name based on the operating system."""
+    system_platform = platform.system()
+    if type == 'prog':
+        progname = f"{prog_name}.exe" if system_platform == "Windows" else prog_name
+        return os.path.join(binout,progname)
+    elif type == 'dynlib':
+        if system_platform == 'Darwin':
+            libname = f"lib{prog_name}.dylib"
+        else:
+            libname = f"lib{prog_name}.dll" if system_platform == "Windows" else f"lib{prog_name}.so"
+        return os.path.join(libout,libname)
+    elif type == 'statlib':
+        libname = f"lib{prog_name}.lib" if system_platform == "Windows" else f"lib{prog_name}.a"
+        return os.path.join(libout,libname)
+    else:
+        print(f"Error: unknown type of object {prog_name}")
+        return
+
+#procedure to build program
+def build_program(parent_dir, comp_dir, binout, libout, compiler,  objdic, typdic, filedic, libdic, optdic):
+    #find the type of compiler
     for obj in objdic:
         type = typdic.get(obj)
-        output_path = get_binary_name(obj,type)
+        output_path = get_binary_name(binout, libout, obj,type)
+        if not output_path: next
         files = filedic.get(obj)
         option = optdic.get(obj)
         libs = libdic.get(obj)
 
-        if not files:
-            print(f"Error: No source files listed for program '{obj}'.")
-            sys.exit(1)
+        #add include directory
+        incdir = addinclude(parent_dir)
 
-        # Prepare directories and validate files
-        source_files = validate_sources(objdir, files)
+        #add libraries
+        libraries = get_libraries(libout, libs)
 
         #define option
         options = validate_options(option)
 
-        # Compile the program
-        compile_program(compiler, type, source_files, output_path, libs, options)
+        # validate files to compile
+        source_files = collect_sources(comp_dir, files)
 
-def read_arguments(argv):  
-    objcomp = []  
-    if len(argv) > 1:
-        objcomp = argv[1:]
-        print(f"Compile: {objcomp}")
-    else:
-        print("Nothing to compile")
-    return objcomp
+        #only compile when there are files to compile
+        if source_files:
+            # Compile the program
+            compile_program(incdir, libraries, compiler, type, source_files, output_path, options)
+        else:
+            print (f"no files to compile obj {obj}, skipping")
 
 
 def main():
+    # Setup argument parser
+    parser = setup_parser()
+    args = parser.parse_args()
+
+    # Show help if no directories are provided
+    if not args.directories:
+        print("No directories provided, nothing to compile.")
+    
     print("Current dir:", current_dir)
     print("Parent dir:", parent_dir)
-    prepare_directories(bindir)
-    prepare_directories(libdir)
 
-    objcomp = read_arguments(sys.argv)
-    
-    for objdir in objcomp:
-        build_program(objdir,parent_dir)
+    #prepare output directories for pro
+    prepare_directories(binout)
+    prepare_directories(libout)
+    #check compiler
+    compiler = detect_compiler()
 
-    
+    #process each directory inputs
+    for objdir in args.directories:
+        #search for compile directory
+        comp_dir = check_compile_directory(parent_dir,objdir)
+        if not comp_dir : next
+        # process bld file
+        bldfilevalid, objdic, typdic, filedic, libdic, optdic =  process_bldfile(comp_dir,bldfile='Bldfile')
+        if not bldfilevalid : next
+        #now compile all obj in the bldfile
+        build_program(parent_dir, comp_dir, binout, libout, compiler, objdic, typdic, filedic, libdic, optdic)
+
+
 if __name__ == "__main__":
     main()
+    sys.exit()
