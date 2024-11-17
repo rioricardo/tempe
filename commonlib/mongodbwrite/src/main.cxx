@@ -1,5 +1,5 @@
 #include <iostream>
-#include "commonlib/multicore/hardwareinfo.h"
+#include "commonlib/multicore/src/hardwareinfo.h"
 
 int main() {
     unsigned int cores = HardwareInfo::getHardwareCores();

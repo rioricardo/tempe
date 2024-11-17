@@ -14,7 +14,6 @@ parent_dir = os.path.dirname(current_dir)
 binout = os.path.join(parent_dir,'bin')
 libout = os.path.join(parent_dir,'lib')
 
-
 #help and usage
 def setup_parser():
     """Setup argument parser to handle command-line arguments."""
@@ -90,7 +89,7 @@ def search_bldfile(comp_dir,bldfile):
 
 def read_bldfile(bldfilename):
     """Load and parse the build file, returning program configuration dictionaries."""
-    objdic, typdic, filedic, libdic, optdic = {}, {}, {}, {}, {}
+    objdic, typdic, srcdic, filedic, libdic, optdic = {}, {}, {}, {}, {}, {}
     obj = None
     try:
         with open(bldfilename, "r") as bldfile:
@@ -112,6 +111,11 @@ def read_bldfile(bldfilename):
                         objdic[value] = value
                         typdic[value] = 'statlib'
                         obj = value
+                    elif id == 'dir':
+                        if(obj):
+                            srcdic[obj] = value
+                        else:
+                            print (f"no object file found for {id} and {value}")
                     elif id == 'file':
                         if(obj):
                             filedic[obj] = value
@@ -132,7 +136,7 @@ def read_bldfile(bldfilename):
     except Exception as e:
         print(f"Error reading {bldfilename}: {e}")
     
-    return objdic, typdic, filedic, libdic, optdic
+    return objdic, typdic, srcdic, filedic, libdic, optdic
 
 def check_objects_in_bldfile(bldfile,objdic,typdic):
     if not objdic or not typdic:
@@ -147,12 +151,12 @@ def process_bldfile(comp_dir,bldfile='Bldfile'):
     if not bldfile : 
         bldfilevalid = False
     #read bldfile 
-    objdic, typdic, filedic, libdic, optdic = read_bldfile(bldfile)
+    objdic, typdic, srcdic, filedic, libdic, optdic = read_bldfile(bldfile)
     #validate objects in bldfile
     if not check_objects_in_bldfile(bldfile, objdic, typdic): 
         bldfilevalid = False
         
-    return bldfilevalid, objdic, typdic, filedic, libdic, optdic
+    return bldfilevalid, objdic, typdic, srcdic, filedic, libdic, optdic
 
 #end of bldfile processes
 
@@ -179,7 +183,19 @@ def compile_program(incdir, libraries, compiler, type, source_files, output_path
         print(f"Error: Compilation failed for {output_path}")
         return
 
-def collect_sources(cmpdir, files):
+def check_src_directory(cmpdir,src):
+    if not src:
+        return cmpdir
+    cmpdir = os.path.join(cmpdir, src)
+    if not os.path.isdir(os.path.join(cmpdir)):
+        print(f"file {cmpdir}/{src} not found, skipping {cmpdir}")
+        return
+    return cmpdir
+
+def collect_sources(cmpdir, src, files):
+    cmpdir = check_src_directory(cmpdir,src)
+    if not cmpdir:
+        return
     source_files = []
     for f in (part.strip() for part in files.split(';')):
         if os.path.isfile(os.path.join(cmpdir, f)):
@@ -191,7 +207,7 @@ def collect_sources(cmpdir, files):
 
 def validate_options(options):
     if (options):
-        return ' '.join(options.split(';'))
+        return ' '.join(part.strip() for part in options.split(';'))
     else:
         return
   
@@ -229,12 +245,13 @@ def get_binary_name(binout, libout, prog_name,type):
         return
 
 #procedure to build program
-def build_program(parent_dir, comp_dir, binout, libout, compiler,  objdic, typdic, filedic, libdic, optdic):
+def build_program(parent_dir, comp_dir, binout, libout, compiler, objdic, typdic, srcdic, filedic, libdic, optdic):
     #find the type of compiler
     for obj in objdic:
         type = typdic.get(obj)
         output_path = get_binary_name(binout, libout, obj,type)
         if not output_path: next
+        src = srcdic.get(obj)
         files = filedic.get(obj)
         option = optdic.get(obj)
         libs = libdic.get(obj)
@@ -249,7 +266,7 @@ def build_program(parent_dir, comp_dir, binout, libout, compiler,  objdic, typdi
         options = validate_options(option)
 
         # validate files to compile
-        source_files = collect_sources(comp_dir, files)
+        source_files = collect_sources(comp_dir, src, files)
 
         #only compile when there are files to compile
         if source_files:
@@ -283,10 +300,10 @@ def main():
         comp_dir = check_compile_directory(parent_dir,objdir)
         if not comp_dir : next
         # process bld file
-        bldfilevalid, objdic, typdic, filedic, libdic, optdic =  process_bldfile(comp_dir,bldfile='Bldfile')
+        bldfilevalid, objdic, typdic, srcdic, filedic, libdic, optdic =  process_bldfile(comp_dir)
         if not bldfilevalid : next
         #now compile all obj in the bldfile
-        build_program(parent_dir, comp_dir, binout, libout, compiler, objdic, typdic, filedic, libdic, optdic)
+        build_program(parent_dir, comp_dir, binout, libout, compiler, objdic, typdic, srcdic, filedic, libdic, optdic)
 
 
 if __name__ == "__main__":

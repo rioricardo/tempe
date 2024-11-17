@@ -1,3 +1,4 @@
 prog=mongowrite
+dir=src
 file=main.cxx
 libraries=multicore

@@ -1,2 +1,3 @@
 dynlib=multicore
+dir=src
 file=hardwareinfo.h;hardwareinfo.cxx
