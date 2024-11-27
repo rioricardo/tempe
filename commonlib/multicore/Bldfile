@@ -1,3 +1,4 @@
 dynlib=multicore
 dir=src
-file=hardwareinfo.h;hardwareinfo.cxx;threadmanager.h;threadmanager.cxx
+file=hardwareinfo.cxx;threadmanager.cxx
+libraries=pthread
