@@ -18,3 +18,4 @@ sudo restorecon -v /path/to/script/kafka-server-start.sh
 
 ensure again with ls -Z
 
+for cluster make sure there is a myid file in /dataDir consisting of server id
