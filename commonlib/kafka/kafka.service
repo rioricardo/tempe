@@ -1,0 +1,16 @@
+[Unit]
+Description=Apache Kafka server
+After=network.target
+
+[Service]
+Type=simple
+User=kafka
+Group=kafka
+ExecStart=/opt/kafka/bin/kafka-server-start.sh /opt/kafka/config/server.properties
+ExecStop=/opt/kafka/bin/kafka-server-stop.sh
+Restart=on-failure
+Environment=KAFKA_LOG_DIR=/opt/kafka/logs
+Environment=KAFKA_LOG4J_OPTS=-Dlog4j.configuration=file:/opt/kafka/config/log4j.properties
+
+[Install]
+WantedBy=multi-user.target

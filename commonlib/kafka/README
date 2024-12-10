@@ -1,0 +1,20 @@
+in a service installation, make sure the sh script has type bin_t 
+SELinux prevent execution of unknown type of script in service
+find the type:
+ls -Z /path/to/script/zookeeper-server-start.sh
+ls -Z /path/to/script/kafka-server-start.sh
+if correct it shall have bin_t type
+
+if it is not bin_t do the following
+
+sudo yum install policycoreutils-python-utils  # RHEL/CentOS
+sudo apt install policycoreutils  # Debian-based
+
+sudo semanage fcontext -a -t bin_t "/path/to/script/zookeeper-server-start.sh"
+sudo semanage fcontext -a -t bin_t "/path/to/script/kafka-server-start.sh"
+
+sudo restorecon -v /path/to/script/zookeeper-server-start.sh
+sudo restorecon -v /path/to/script/kafka-server-start.sh
+
+ensure again with ls -Z
+
