@@ -1,5 +1,8 @@
+make sure the /etc/hosts file is correct for each node
+
 in a service installation, make sure the sh script has type bin_t 
 SELinux prevent execution of unknown type of script in service
+
 find the type:
 ls -Z /path/to/script/zookeeper-server-start.sh
 ls -Z /path/to/script/kafka-server-start.sh
@@ -19,3 +22,11 @@ sudo restorecon -v /path/to/script/kafka-server-start.sh
 ensure again with ls -Z
 
 for cluster make sure there is a myid file in /dataDir consisting of server id
+
+if using kraft instead of zookeeper
+run this at initialization
+bin/kafka-storage.sh format -t <KAFKA_CLUSTER_ID> -c config/kraft/reconfig-server.properties
+or 
+bin/kafka-storage.sh format -t <KAFKA_CLUSTER_ID> -c config/server.properties //make sure the server.properties are for kafka, not zookeeper
+log_dir need to be changed to permanent drive, the default tmp is reset when server reboot
+
