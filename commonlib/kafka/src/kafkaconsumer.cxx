@@ -1,7 +1,7 @@
 #include "kafkaconsumer.h"
 #include <iostream>
 
-KafkaConsumer::KafkaConsumer(const std::string& broker, const std::string& topicstr, const std::string& groupId)
+KafkaConsumer::KafkaConsumer(const std::string& broker, const std::string& topicstr, const std::string& groupId, const std::string& offset)
     : topicName(topicstr) {
     // Create Kafka consumer configuration
     std::string errstr;
@@ -15,6 +15,11 @@ KafkaConsumer::KafkaConsumer(const std::string& broker, const std::string& topic
     // Set the group ID for the consumer group
     if (conf->set("group.id", groupId, errstr) != RdKafka::Conf::CONF_OK) {
         throw std::runtime_error("Failed to set group.id: " + errstr);
+    }
+
+    // Set the offset
+    if (conf->set("auto.offset.reset", offset, errstr) != RdKafka::Conf::CONF_OK) {
+        throw std::runtime_error("Failed to set offset: " + errstr);
     }
 
     // Create the Kafka consumer

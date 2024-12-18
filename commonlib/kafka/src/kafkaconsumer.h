@@ -7,7 +7,7 @@
 class KafkaConsumer {
 public:
     // Constructor: Initializes the Kafka consumer with broker and topic
-    KafkaConsumer(const std::string& broker, const std::string& topicstr, const std::string& groupId);
+    KafkaConsumer(const std::string& broker, const std::string& topicstr, const std::string& groupId, const std::string& offset);
 
     // Destructor: Cleans up Kafka consumer resources
     ~KafkaConsumer();
