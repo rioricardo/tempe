@@ -28,7 +28,7 @@ void ThreadManager::startThreads(std::function<void(int)> task) {
         threads.emplace_back([this, task, i]() {
             while (running) {
                 task(i); // Execute the task
-                std::this_thread::sleep_for(std::chrono::seconds(1)); // Simulate work
+                //std::this_thread::sleep_for(std::chrono::seconds(1)); // Simulate work
             }
         });
     }

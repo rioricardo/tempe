@@ -12,7 +12,8 @@
             "console": "integratedTerminal",
             "args": [
                 "commonlib/multicore",
-                "commonlib/mongodbwrite"
+                "commonlib/kafka",
+                "kafka_test"
                 //"${command:pickArgs}"
             ]
         },

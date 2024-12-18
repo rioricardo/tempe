@@ -1,0 +1,8 @@
+prog=kafkaproducertest
+dir=src
+file=example_producer.cxx
+libraries=multicore;kafkatemp
+prog=kafkaconsumertest
+dir=src
+file=example_consumer.cxx
+libraries=multicore;kafkatemp

@@ -1,0 +1,4 @@
+dynlib=kafkatemp
+dir=src
+file=kafkaproducer.cxx;kafkaconsumer.cxx
+libraries=rdkafka++
