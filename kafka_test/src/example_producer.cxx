@@ -13,7 +13,7 @@ void produceMessagesTask(KafkaProducer& producer, int threadId) {
 int main() {
     try {
         // Initialize the Kafka producer
-        KafkaProducer producer("goodboy:9092", "test_topic");
+        KafkaProducer producer("goodboy:9092,smugboy:9092", "test_topic");
 
         // Initialize the thread manager
         ThreadManager threadManager;

@@ -13,7 +13,7 @@ void startConsumer(const std::string& broker, const std::string& topic, const st
 }
 
 int main() {
-    std::string broker = "goodboy:9092";  // Kafka broker address
+    std::string broker = "goodboy:9092,smugboy:9092";  // Kafka broker address
     std::string topic = "test_topic";  // Kafka topic to consume messages from
     std::string groupid = "test_group1";  // Kafka topic to consume messages from
     std::string offset = "latest";  // Kafka topic to consume messages from
